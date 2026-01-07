@@ -1,98 +1,152 @@
-# Documentation of Transformation Modules
+# Stock-Spark-DL Pipeline Documentation
 
 ## Overview
 
-This document describes the **reusable data transformation modules** used in the **FinanceLake** project.  
-These modules are located in the `utils/` folder and are designed to work with **Spark DataFrames**.
+This document describes the **modules of the real-time stock prediction pipeline** used in the **Stock-Spark-DL** project. These modules are organized to create a complete pipeline: Kafka → Spark → GRU → Dashboard.
 
 ---
 
-## `calculate_ema()`
+## `01_train_gru.py`
 
-> Computes **Exponential Moving Average (EMA)** over a value column.
+> **Trains a GRU (Gated Recurrent Unit) model** on synthetic stock data.
 
-- **File**: `utils/indicators.py`
+- **File**: `01_train_gru.py`
+- **Type**: Batch training script
 
-### Parameters
+### Main Parameters
 
-- `df`: Spark DataFrame with a `date` column and a numeric column (e.g. `price`)
-- `column_name`: Column containing the values to compute EMA
-- `span` *(optional)*: EMA period *(default is 7)*.
+- `sequence_length`: Length of time sequences 
+- `n_features`: Number of technical features 
+- `epochs`: Number of training epochs 
+- `batch_size`: Batch size 
+### Features
 
-### Output
+1. **Synthetic data generation** with realistic patterns
+2. **Technical feature calculation**:
+   - Price, volume, variations
+   - Moving averages (5, 10 periods)
+   - Volatility, returns
+3. **GRU model construction**:
+   - 2 GRU layers (64 → 32 neurons)
+   - Dense layers with dropout
+   - Sigmoid output (binary classification)
+4. **Training and saving**:
+   - Model: `models/gru_model.h5`
+   - Scaler: `models/scaler.pkl`
 
-- Spark DataFrame with a **new column `ema`**.
+---
 
-### Example
+## `02_kafka_producer.py`
 
-```python
-from utils.indicators import calculate_ema
-from pyspark.sql import SparkSession
+> **Generates and sends real-time stock data to Kafka.**
 
-spark = SparkSession.builder.appName("Test").getOrCreate()
-data = [(1, "2023-01-01", 100), (2, "2023-01-02", 110), (3, "2023-01-03", 120)]
-df = spark.createDataFrame(data, ["id", "date", "price"])
+- **File**: `02_kafka_producer.py`
+- **Type**: Real-time Kafka producer
 
-result = calculate_ema(df, "price", span=3)
-result.show() 
-```
+### Main Parameters
 
-## `min_max_normalize()`
+- `bootstrap_servers`: Kafka broker addresses *(default: 'localhost:9092')*
+- `topic`: Kafka topic for stock data *(default: 'stock_data')*
+- `interval`: Data generation interval in seconds *(default: 2)*
 
-    Normalizes values between 0 and 1.
+### Features
 
-    File: utils/normalization.py
+1. **Real-time data generation**:
+   - Synthetic ticker symbols (AAPL, GOOGL, TSLA, MSFT, AMZN)
+   - Realistic price variations with trends and volatility
+2. **Kafka integration**:
+   - JSON format data serialization
+   - Configurable publishing frequency
+   - Error handling and reconnection
+3. **Simulation control**:
+   - Adjustable trend periods
+   - Volatility simulation
+   - Configurable trading hours
 
-### Parameters
+---
 
-    df: Spark DataFrame
+## `03_spark_gru_streaming.py`
 
-    column_name: Column to normalize
+> **Spark Streaming processing with GRU integration for real-time predictions.**
 
-### Output
+- **File**: `03_spark_gru_streaming.py`
+- **Type**: Spark Structured Streaming application
 
-    Spark DataFrame with new column normalized.
+### Features
 
-### Example
+1. **Stream processing pipeline**:
+   - Kafka source integration
+   - JSON parsing and schema validation
+   - Window-based aggregations
+2. **Real-time predictions**:
+   - GRU model loading and inference
+   - Sequence construction from streaming data
+   - Prediction batching
+3. **Output handling**:
+   - Console output for debugging
+   - File sink for predictions
+   - State management for sequences
 
-```python
-from utils.normalization import min_max_normalize
+---
 
-result = min_max_normalize(df, "price")
-result.show()
-```
+## `04_dashboard.py`
 
-## `remove_outliers()`
+> **Real-time web dashboard for prediction visualization.**
 
-    Removes outliers using the Z-score method.
+- **File**: `04_dashboard.py`
+- **Type**: Flask application with WebSocket
 
-    File: utils/filters.py
+### Web Architecture
 
-### Parameters
+- **Backend**: Flask + Flask-SocketIO
+- **Frontend**: HTML/CSS/JS vanilla
+- **Communication**: WebSocket for real-time updates
+- **Refresh**: Auto (5 seconds)
 
-    df: Spark DataFrame
+### Features
 
-    column_name: Column to clean
+1. **Real-time data display**:
+   - Latest predictions table
+   - Price trend charts
+   - Prediction confidence indicators
+2. **Interactive elements**:
+   - Symbol filtering
+   - Time range selection
+   - Manual refresh option
+3. **Visualization**:
+   - Color-coded predictions (up/down)
+   - Historical trend graphs
+   - Performance metrics
 
-    threshold (optional): Z-score threshold (default is 3)
+---
 
-### Output
+## Dependencies
 
-     Spark DataFrame without outliers
+### Core Libraries
+- **TensorFlow/Keras**: For GRU model
+- **PySpark**: For stream processing
+- **Kafka-Python**: For data streaming
+- **Flask/SocketIO**: For dashboard
 
-### Example
+### Data Processing
+- **Pandas/NumPy**: For data manipulation
+- **Scikit-learn**: For feature scaling
+- **Matplotlib/Plotly**: For visualization (optional)
 
-```python
-from utils.filters import remove_outliers
+---
 
-result = remove_outliers(df, "price", threshold=3)
-result.show()
-```
-### Usage
+## Usage Flow
 
-You can import all modules like this:
+1. **Train model**: Run `01_train_gru.py` to generate and save the model
+2. **Start producer**: Run `02_kafka_producer.py` to generate streaming data
+3. **Launch streaming**: Run `03_spark_gru_streaming.py` to process and predict
+4. **Open dashboard**: Run `04_dashboard.py` and navigate to `http://localhost:5000`
 
-```python
-from utils import calculate_ema, min_max_normalize, remove_outliers
-```
+---
 
+## Configuration Notes
+
+- Ensure Kafka is running on `localhost:9092`
+- Spark must be properly configured with Kafka libraries
+- TensorFlow model requires compatible CUDA for GPU acceleration
+- Dashboard uses port 5000 by default (modify if needed)
