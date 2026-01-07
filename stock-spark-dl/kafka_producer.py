@@ -71,4 +71,4 @@ try:
 except KeyboardInterrupt:
     print("\n⏹️ Producteur arrêté")
 finally:
-    producer.close() 
+    producer.close()  

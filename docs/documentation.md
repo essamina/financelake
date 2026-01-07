@@ -149,4 +149,4 @@ This document describes the **modules of the real-time stock prediction pipeline
 - Ensure Kafka is running on `localhost:9092`
 - Spark must be properly configured with Kafka libraries
 - TensorFlow model requires compatible CUDA for GPU acceleration
-- Dashboard uses port 5000 by default (modify if needed) 
+- Dashboard uses port 5000 by default (modify if needed)  
