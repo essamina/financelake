@@ -18,4 +18,4 @@ plotly==5.17.0
 EOF
 
 # Installer les dépendances
-pip install -r requirements.txt
+pip install -r requirements.txt 

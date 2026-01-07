@@ -16,7 +16,7 @@ dashboard_data = {
     'stats': {},
     'last_update': datetime.now().isoformat()
 }
-
+ 
 print("🌐 Dashboard démarré: http://localhost:5000")
 
 @app.route('/')
